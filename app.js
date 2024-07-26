@@ -1,21 +1,22 @@
 const express = require('express');
-var cors = require('cors')
+var cors = require('cors');
+const { getNotice } = require('./userDBC');
 const app = express();
+
 
 app.use(cors());
 app.use(express.json())
 
-const noticeData = [
-  {id:0, title:"공지사항 1입니다.",desc:"안녕하세용",date: new Date('2024-07-02')},
-  {id:1, title:"공지사항 2입니다.",desc:"안녕하세용",date: new Date('2024-07-02')},
-  {id:2, title:"공지사항 3입니다.",desc:"안녕하세용",date: new Date('2024-07-02')},
-  {id: 3, title: "공지사항 4입니다.", desc: "안녕하세용", date: new Date('2024-07-02') },
-  {id:4, title:"공지사항 5입니다.",desc:"안녕하세용",date: new Date('2024-07-02')},
-]
+const noticeData = getNotice();
 
-app.get('/api/notice', (req, res) => {
-    res.send(JSON.stringify(noticeData));
-})
+app.get('/api/notice', async (req, res) => {
+  try {
+      const noticeData = await getNotice(); // 비동기 함수 호출
+      res.json(noticeData); // JSON 형태로 응답
+  } catch (error) {
+      console.error('Error fetching notices:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 app.listen(3001);
-
