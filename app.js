@@ -11,7 +11,6 @@ const noticeData = [
   {id:2, title:"공지사항 3입니다.",desc:"안녕하세용",date: new Date('2024-07-02')},
   {id: 3, title: "공지사항 4입니다.", desc: "안녕하세용", date: new Date('2024-07-02') },
   {id:4, title:"공지사항 5입니다.",desc:"안녕하세용",date: new Date('2024-07-02')},
-
 ]
 
 app.get('/api/notice', (req, res) => {
