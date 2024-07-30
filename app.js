@@ -1,22 +1,32 @@
 const express = require('express');
-var cors = require('cors');
-const { getNotice } = require('./userDBC');
+var cors = require('cors')
 const app = express();
-
+const { getNotice,getEvents } = require('./dbconnect');
 
 app.use(cors());
 app.use(express.json())
 
-const noticeData = getNotice();
+
 
 app.get('/api/notice', async (req, res) => {
   try {
-      const noticeData = await getNotice(); // 비동기 함수 호출
-      res.json(noticeData); // JSON 형태로 응답
+    const noticeData = await getNotice();
+    res.send(noticeData);
   } catch (error) {
-      console.error('Error fetching notices:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+    console.log(error);
+    res.status(500);
   }
-});
+})
+
+app.get('/api/events', async (req, res) => {
+  try {
+    const Data = await getEvents();
+    res.send(Data);
+  } catch (error) {
+    console.log(error);
+    res.status(500);
+  }
+})
 
 app.listen(3001);
+
