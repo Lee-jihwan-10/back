@@ -1,4 +1,5 @@
 const mysql = require('mysql2');
+const moment = require('moment-timezone');
 require('dotenv').config();
 
 // Create the connection pool. The pool-specific settings are the defaults
@@ -17,7 +18,7 @@ const pool = mysql.createPool
 const promisePool = pool.promise();
 
 const getNotice = async () => {
-  try { const promisePool = pool.promise();
+  try {
     const [rows] = await promisePool.query('SELECT NoticeID AS id, Title AS title, Content AS content, Upload_DATE AS date FROM Notice;');
   
     // 데이터를 변환하여 요청한 형식으로 변경
@@ -25,7 +26,7 @@ const getNotice = async () => {
       id: row.id,
       title: row.title,
       desc: row.content,
-      date: new Date(row.date)
+      date: moment.tz(row.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss')
     }));
   
     console.log(notices);
@@ -50,7 +51,7 @@ const getNoticeById = async (id) => {
       id: notice.id,
       title: notice.title,
       desc: notice.content,
-      date: new Date(notice.date)
+      date: moment.tz(notice.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss')
     };
   } catch (error) {
     console.error('Error fetching notice by ID:', error);
@@ -66,8 +67,8 @@ const getFinance = async () => {
     // 데이터를 변환하여 요청한 형식으로 변경
     const financeData = rows.map(row => ({
       id: row.Quarter, // 여기에 적절한 ID를 설정 (예: Quarter를 ID로 사용)
-      year: new Date(row.date).getFullYear(),
-      month: new Date(row.date).getMonth() + 1, // 월은 0부터 시작하므로 +1
+      year: moment.tz(row.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss').getFullYear(),
+      month: moment.tz(row.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss').getMonth() + 1, // 월은 0부터 시작하므로 +1
       quarter: row.Quarter
     }));
     
@@ -91,14 +92,36 @@ const getFinanceById = async (id) => {
     const finance = rows[0];
     return {
       id: finance.Quarter,
-      year: new Date(finance.date).getFullYear(),
-      month: new Date(finance.date).getMonth() + 1, // 월은 0부터 시작하므로 +1
+      year: moment.tz(finance.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss').getFullYear(),
+      month: moment.tz(finance.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss').getMonth() + 1, // 월은 0부터 시작하므로 +1
       quarter: finance.Quarter,
       image_url: finance.fileId ? [finance.fileId] : [] // `fileId`를 사용하여 이미지 URL 리스트 생성 (여러 파일일 경우를 고려하여 배열로 처리)
     };
   } catch (error) {
     console.error('Error fetching finance data by ID:', error);
     throw error; // 에러를 호출자에게 전달
+  }
+};
+
+//달력 일정 호출
+const getCalendar = async() => {
+  try {
+  const [rows] = await promisePool.query('SELECT id AS id, startDate AS start, endDate AS end, title AS title, content AS content FROM Calendar;');
+
+  const calendar = rows.map(row => ({
+    id: row.id,
+    startDate: moment.tz(row.start, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss'),
+    endDate: moment.tz(row.end, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss'),
+    title: row.title,
+    content: row.content
+  }));
+  
+  console.log(calendar);
+  return calendar;
+
+  } catch (error){
+    console.error('Error fetching calendar:', error);
+    throw error;
   }
 };
 
@@ -109,5 +132,6 @@ module.exports = {
   getNotice,
   getNoticeById,
   getFinance,
-  getFinanceById // 추가된 함수
+  getFinanceById, // 추가된 함수
+  getCalendar,
 };

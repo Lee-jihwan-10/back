@@ -1,12 +1,15 @@
 const express = require('express');
 var cors = require('cors');
-const { getNotice, getNoticeByID } = require('./userDBC');
-
+const bodyParser = require('body-parser');
+const { getNotice, getNoticeByID, getFinance, getFinanceById, getCalendar } = require('./userDBC');
+const authStudent = require('./auth');
 const app = express();
 
 
 app.use(cors());
 app.use(express.json())
+app.use(bodyParser.json());
+
 
 // 승희: 전체 공지사항 가져오기
 app.get('/api/notice', async (req, res) => {
@@ -64,6 +67,75 @@ app.get('/api/finance/:id', async (req, res) => {
   }
 });
 
+app.get('/api/calendar', async (req, res) => {
+  try {
+    const calendarData = await getCalendar();
+    res.json(calendarData);
+  } catch (error) {
+    console.error('Error fetching notices:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+//되는지 모르겠음
+app.post('/api/authStudent', (req, res) => {
+  const { studentId, name } = req.body;
+  
+  if (!studentId || !name) {
+      return res.status(400).json({ error: '학번과 이름을 모두 제공해야 합니다.' });
+  }
+
+  authStudent(studentId, name);
+  
+});
+
+// 결산안 추가 API
+app.post('/api/admin/finance/post', async (req, res) => {
+  try {
+    const { year, month, qurter, imageurl } = req.body;
+    const query = 'INSERT INTO finance (year, month, qurter, imageurl) VALUES (?, ?, ?, ?)';
+    const [result] = await pool.execute(query, [year, month, qurter, JSON.stringify(imageurl)]);
+    res.json({ id: result.insertId, message: '결산안이 성공적으로 추가되었습니다.' });
+  } catch (error) {
+    console.error('결산안 추가 에러:', error);
+    res.status(500).json({ error: '결산안 추가 중 오류가 발생했습니다.' });
+  }
+});
+
+// 결산안 수정 API
+app.patch('/api/admin/finance/patch/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { year, month, qurter, imageurl } = req.body;
+    const query = 'UPDATE finance SET year = ?, month = ?, qurter = ?, imageurl = ? WHERE id = ?';
+    const [result] = await pool.execute(query, [year, month, qurter, JSON.stringify(imageurl), id]);
+    if (result.affectedRows > 0) {
+      res.json({ message: '결산안이 성공적으로 수정되었습니다.' });
+    } else {
+      res.status(404).json({ error: '해당 ID의 결산안을 찾을 수 없습니다.' });
+    }
+  } catch (error) {
+    console.error('결산안 수정 에러:', error);
+    res.status(500).json({ error: '결산안 수정 중 오류가 발생했습니다.' });
+  }
+});
+
+// 결산안 삭제 API
+app.delete('/api/admin/finance/delete/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const query = 'DELETE FROM finance WHERE id = ?';
+    const [result] = await pool.execute(query, [id]);
+    if (result.affectedRows > 0) {
+      res.json({ message: '결산안이 성공적으로 삭제되었습니다.' });
+    } else {
+      res.status(404).json({ error: '해당 ID의 결산안을 찾을 수 없습니다.' });
+    }
+  } catch (error) {
+    console.error('결산안 삭제 에러:', error);
+    res.status(500).json({ error: '결산안 삭제 중 오류가 발생했습니다.' });
+  }
+});
 
 
 app.listen(3001, () => {
