@@ -110,8 +110,8 @@ const getCalendar = async() => {
 
   const calendar = rows.map(row => ({
     id: row.id,
-    startDate: moment.tz(row.start, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss'),
-    endDate: moment.tz(row.end, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss'),
+    startDate: new Date(row.start),
+    endDate: new Date(row.end),
     title: row.title,
     content: row.content
   }));
