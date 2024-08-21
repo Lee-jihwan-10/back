@@ -17,11 +17,53 @@ const pool = mysql.createPool
 
 const promisePool = pool.promise();
 
-const getNotice = async () => {
+
+const createNotice = async (title, content) => {
+  try {
+    const [result] = await promisePool.query(
+      'INSERT INTO Notice (Title, Content, Upload_DATE) VALUES (?, ?, NOW())',
+      [title, content]
+    );
+    return { id: result.insertId, title, content };
+  } catch (error) {
+    console.error('Error creating notice:', error);
+    throw error;
+  }
+};
+
+const updateNotice = async (id, title, content) => {
+  try {
+    const [result] = await promisePool.query(
+      'UPDATE Notice SET Title = ?, Content = ? WHERE NoticeID = ?',
+      [title, content, id]
+    );
+    if (result.affectedRows > 0) {
+      return { id, title, content };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error updating notice:', error);
+    throw error;
+  }
+};
+
+const deleteNotice = async (id) => {
+  try {
+    const [result] = await promisePool.query(
+      'DELETE FROM Notice WHERE NoticeID = ?',
+      [id]
+    );
+    return result.affectedRows > 0;
+  } catch (error) {
+    console.error('Error deleting notice:', error);
+    throw error;
+  }
+};
+
+const getNotice = async (retries = 3) => {
   try {
     const [rows] = await promisePool.query('SELECT NoticeID AS id, Title AS title, Content AS content, Upload_DATE AS date FROM Notice;');
-  
-    // 데이터를 변환하여 요청한 형식으로 변경
+    
     const notices = rows.map(row => ({
       id: row.id,
       title: row.title,
@@ -32,11 +74,14 @@ const getNotice = async () => {
     console.log(notices);
     return notices;
   } catch (error) {
+    if (error.code === 'ETIMEDOUT' && retries > 0) {
+      console.log(`Connection timed out. Retrying... (${retries} attempts left)`);
+      return getNotice(retries - 1);
+    }
     console.error('Error fetching notices:', error);
-    throw error; // 적절한 에러 처리를 추가함-승희
+    throw error;
   }
 };
-
 // 특정 공지사항을 ID로 조회하는 함수
 const getNoticeById = async (id) => {
   try {
@@ -47,6 +92,7 @@ const getNoticeById = async (id) => {
     }
     
     const notice = rows[0];
+    //이거 공지사항에 들어가는 이미지들은요..?
     return {
       id: notice.id,
       title: notice.title,
@@ -134,4 +180,7 @@ module.exports = {
   getFinance,
   getFinanceById, // 추가된 함수
   getCalendar,
+  createNotice,
+  updateNotice,
+  deleteNotice,
 };

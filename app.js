@@ -21,9 +21,67 @@ app.get('/api/notice', async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+//윤수 페이지별로 공지사항 가져오기
+app.get('/api/notice/:page', async (req, res) => {
+  const page = parseInt(req.params.page, 10);
+  const limit = 10; // 페이지당 공지사항 수
+  const offset = (page - 1) * limit;
 
-// 승희: 특정 공지사항 가져오기
-app.get('/api/notice/:id', async (req, res) => {
+  try {
+    const noticeData = await getNotice(limit, offset);
+    res.json(noticeData);
+  } catch (error) {
+    console.error('Error fetching notices:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+//공지사항 생성
+app.post('/api/admin/notice', async (req, res) => {
+  const { title, content } = req.body;
+  try {
+    const newNotice = await createNotice(title, content);
+    res.status(201).json(newNotice);
+  } catch (error) {
+    console.error('Error creating notice:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// 공지사항 수정
+app.put('/api/admin/notice/:id', async (req, res) => {
+  const noticeId = parseInt(req.params.id, 10);
+  const { title, content } = req.body;
+  try {
+    const updatedNotice = await updateNotice(noticeId, title, content);
+    if (updatedNotice) {
+      res.json(updatedNotice);
+    } else {
+      res.status(404).json({ error: 'Notice not found' });
+    }
+  } catch (error) {
+    console.error('Error updating notice:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// 공지사항 삭제
+app.delete('/api/admin/notice/:id', async (req, res) => {
+  const noticeId = parseInt(req.params.id, 10);
+  try {
+    const result = await deleteNotice(noticeId);
+    if (result) {
+      res.json({ message: 'Notice deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Notice not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting notice:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+// 승희: 특정 공지사항 ``가져오기``
+//윤수: 이거 detail로 좀 바꿨어요
+app.get('/api/notice/detail/:id', async (req, res) => {
   const noticeId = parseInt(req.params.id, 10); // URL 파라미터에서 공지사항 ID를 가져옹
 
   try {
