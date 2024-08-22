@@ -6,7 +6,7 @@ require('dotenv').config();
 const pool = mysql.createPool
 ({
   host: process.env.DB_HOST,
-  port: process.env.DB_PORT, // 3306
+  port: process.env.DB_PORT,
   user: process.env.DB_USER,
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
@@ -111,13 +111,18 @@ const getFinance = async () => {
     const [rows] = await promisePool.query('SELECT Upload_DATE AS date, Quarter, Title AS title, Content AS content, File_ID AS fileId FROM Finance;');
     
     // 데이터를 변환하여 요청한 형식으로 변경
-    const financeData = rows.map(row => ({
-      id: row.Quarter, // 여기에 적절한 ID를 설정 (예: Quarter를 ID로 사용)
-      year: moment.tz(row.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss').getFullYear(),
-      month: moment.tz(row.date, 'Asia/Seoul').format('YYYY-MM-DD HH:mm:ss').getMonth() + 1, // 월은 0부터 시작하므로 +1
-      quarter: row.Quarter
-    }));
-    
+    const financeData = rows.map(row => {
+      const seoulDate = moment.tz(row.date, 'Asia/Seoul');
+      return {
+        id: row.Quarter,
+        year: seoulDate.year(),
+        month: seoulDate.month() + 1, // 월은 0부터 시작하므로 +1
+        quarter: row.Quarter,
+        title: row.title,
+        content: row.content,
+        image_url: row.fileId ? [`/api/files/${row.fileId}`] : []
+      };
+    });
     console.log(financeData);
     return financeData;
   } catch (error) {
