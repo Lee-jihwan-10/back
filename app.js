@@ -195,7 +195,134 @@ app.delete('/api/admin/finance/delete/:id', async (req, res) => {
   }
 });
 
+//지환: 갤러리 삽입
+app.post('/api/admin/gallery/post', async (req, res) => {
+  const { title, content, upload_date, thumbnail_url, image_urls } = req.body;
 
+  // 데이터 유효성 검사, 썸네일 url 을 따로 바디에서 받으려는데 가능할까 ??
+  if (!title || !content || !upload_date || !thumbnail_url || !Array.isArray(image_urls)) {
+    return res.status(400).json({ message: '필수 데이터가 부족하거나 잘못된 형식입니다.' });
+  }
+
+  try {
+    // 트랜잭션 시작
+    await pool.query('BEGIN');
+
+    // Gallery 테이블에 게시물 삽입
+    const insertGalleryQuery = 'INSERT INTO Gallery (Title, Content, Upload_DATE) VALUES (?, ?, ?)';
+    const [galleryResult] = await pool.execute(insertGalleryQuery, [title, content, upload_date]);
+    const galleryId = galleryResult.insertId;
+
+    // Gallery_Album 테이블에 앨범 삽입
+    const insertAlbumQuery = 'INSERT INTO Gallery_Album (Gallery_ID, Thumbnail_URL) VALUES (?, ?, ?)';
+    const [albumResult] = await pool.execute(insertAlbumQuery, [galleryId, thumbnail_url]);
+    const albumId = albumResult.insertId;
+
+    // Gallery_Image 테이블에 이미지 삽입
+    const insertImageQuery = 'INSERT INTO Gallery_Image (ImageURL, Album_ID) VALUES (?, ?)';
+    const imageInsertPromises = image_urls.map(url => pool.execute(insertImageQuery, [url, albumId]));
+    await Promise.all(imageInsertPromises);
+
+    // 트랜잭션 커밋
+    await pool.query('COMMIT');
+
+    // 응답
+    res.status(201).json({
+      message: '갤러리 게시물 및 앨범이 성공적으로 추가되었습니다.',
+      galleryId,
+      albumId
+    });
+  } catch (error) {
+    // 트랜잭션 롤백
+    await pool.query('ROLLBACK');
+    console.error('갤러리 게시물 추가 에러:', error);
+    res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+  }
+});
+
+// 지환: 갤러리 게시물 전체 수정 
+app.put('/api/admin/gallery/put/:id', async (req, res) => {
+    const postId = parseInt(req.params.id, 10); // URL 파라미터에서 게시물 ID를 가져옴
+    const { title, upload_date, content, image_url } = req.body;
+
+    // 데이터 유효성 검사
+    if (!title || !upload_date || !content || !Array.isArray(image_url)) {
+        return res.status(400).json({ message: '필수 데이터가 부족하거나 잘못된 형식입니다.' });
+    }
+
+    try {
+        // 트랜잭션 시작
+        await pool.query('BEGIN');
+
+        // 게시물 데이터 업데이트
+        const updatePostQuery = `
+            UPDATE gallery_posts
+            SET title = $1, upload_date = $2, content = $3
+            WHERE id = $4
+        `;
+        await pool.query(updatePostQuery, [title, upload_date, content, postId]);
+
+        // 기존 이미지 삭제
+        const deleteImagesQuery = 'DELETE FROM gallery_images WHERE post_id = $1';
+        await pool.query(deleteImagesQuery, [postId]);
+
+        // 새 이미지 추가
+        const insertImageQuery = 'INSERT INTO gallery_images (post_id, image_url) VALUES ($1, $2)';
+        for (const url of image_url) {
+            await pool.query(insertImageQuery, [postId, url]);
+        }
+
+        // 트랜잭션 커밋
+        await pool.query('COMMIT');
+
+        res.status(200).json({
+            message: '갤러리 게시물이 성공적으로 수정되었습니다.',
+            postId
+        });
+    } catch (error) {
+        // 트랜잭션 롤백
+        await pool.query('ROLLBACK');
+        console.error('Error updating post:', error);
+        res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+    }
+});
+
+//지환: 갤러리 게시물 삭제 
+app.delete('/api/admin/gallery/delete/:id', async (req, res) => {
+    const postId = parseInt(req.params.id, 10); // URL 파라미터에서 게시물 ID를 가져옴
+
+    try {
+        // 트랜잭션 시작
+        await pool.query('BEGIN');
+
+        // 이미지 삭제
+        const deleteImagesQuery = 'DELETE FROM gallery_images WHERE post_id = $1';
+        await pool.query(deleteImagesQuery, [postId]);
+
+        // 게시물 삭제
+        const deletePostQuery = 'DELETE FROM gallery_posts WHERE id = $1';
+        const result = await pool.query(deletePostQuery, [postId]);
+
+        if (result.rowCount === 0) {
+            // 게시물이 존재하지 않는 경우
+            await pool.query('ROLLBACK');
+            return res.status(404).json({ message: '게시물이 존재하지 않습니다.' });
+        }
+
+        // 트랜잭션 커밋
+        await pool.query('COMMIT');
+
+        res.status(200).json({
+            message: '갤러리 게시물이 성공적으로 삭제되었습니다.',
+            postId
+        });
+    } catch (error) {
+        // 트랜잭션 롤백
+        await pool.query('ROLLBACK');
+        console.error('Error deleting post:', error);
+        res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+    }
+});
 app.listen(3001, () => {
   console.log('Server is running on http://localhost:3001');
 });
